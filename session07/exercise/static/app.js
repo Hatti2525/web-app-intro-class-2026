@@ -95,6 +95,7 @@ function renderTodos(todos) {
     checkbox.className = "todo-checkbox";
     checkbox.checked = todo.done;
     checkbox.addEventListener("change", function () {
+      console.log("checkbox changed", todo.id, todo.done);
       toggleTodo(todo.id, todo.done);
     });
 
