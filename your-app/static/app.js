@@ -1,32 +1,32 @@
 /**
- * TODO App JavaScript - 完成版
+ * Games App JavaScript - 完成版
  * 第8回: セキュリティの基礎 & 総仕上げ
  *
  * 【このファイルの役割】
  *  ブラウザの画面（HTML）と、バックエンド（main.py）の橋渡しをする。
  *
  * 【全体の流れ】
- *  1. ページが開かれる → loadTodos() でサーバーからTODO一覧を取得
- *  2. renderTodos() が、取得したデータを画面のリストとして描画する
+ *  1. ページが開かれる → loadlibrary() でサーバーからGames一覧を取得
+ *  2. renderlibrary() が、取得したデータを画面のリストとして描画する
  *  3. ユーザーが「追加・チェック・削除」を操作する
  *     → 対応する関数がサーバーに変更を送る（fetch）
- *     → 最後にもう一度 loadTodos() して、最新の状態を画面に反映する
+ *     → 最後にもう一度 loadlibrary() して、最新の状態を画面に反映する
  *
  * ※ fetch はサーバーと通信する命令。通信は時間がかかるので、
  *   async / await を使って「結果が返ってくるまで待つ」書き方をしている。
  */
 
-// サーバー側のAPIのアドレス（main.py の @app.get("/todos") などに対応）
-const API_URL = "/todos";
+// サーバー側のAPIのアドレス（main.py の @app.get("/library") などに対応）
+const API_URL = "/library";
 
 // ============================================================
-// TODO操作（CRUD）
+// Games操作（CRUD）
 // ============================================================
 
 /**
- * TODO一覧を取得して表示する
+ * Games一覧を取得して表示する
  */
-async function loadTodos() {
+async function loadlibrary() {
   // try ... catch: 通信中にエラーが起きても、アプリが止まらないようにする
   try {
     // サーバーに「一覧をください」とお願いし、返事(response)を待つ
@@ -35,13 +35,16 @@ async function loadTodos() {
     // response.ok が false = サーバーがエラーを返したとき
     if (!response.ok) {
       const error = await response.json(); // エラー内容を取り出す
-      showError(error.detail || "TODOの取得に失敗しました");
+      showError(error.detail || "Gameの取得に失敗しました");
       return; // ここで処理を終える
     }
 
     // 返ってきたデータ(JSON)をJavaScriptの配列に変換する
-    const todos = await response.json();
-    renderTodos(todos); // 画面に描画する
+    const library = await response.json();
+
+    library.sort((a, b) => a.played - b.played);
+    
+    renderlibrary(library); // 画面に描画する
   } catch (error) {
     // そもそもサーバーにつながらなかったときなど
     showError("通信エラーが発生しました");
@@ -49,16 +52,19 @@ async function loadTodos() {
 }
 
 /**
- * 新しいTODOを追加する
+ * 新しいGamesを追加する
  */
-async function addTodo() {
+async function addGames() {
   // 入力欄の要素を取得し、入力された文字を読み取る（trimで前後の空白を除去）
-  const input = document.getElementById("todo-input");
+  const input = document.getElementById("Games-input");
   const title = input.value.trim();
+
+  const genreInput = document.getElementById("Genre-input");
+  const genre = genreInput.value.trim();
 
   // 送信前のチェック（バリデーション）: 空のときは送らずに注意を表示
   if (title === "") {
-    showError("TODOのタイトルを入力してください");
+    showError("Gameのタイトルを入力してください");
     return;
   }
 
@@ -69,69 +75,70 @@ async function addTodo() {
   }
 
   try {
-    // サーバーに「このTODOを追加して」と送る
+    // サーバーに「このGamesを追加して」と送る
     const response = await fetch(API_URL, {
       method: "POST", // POST = 新しいデータを作る
       headers: { "Content-Type": "application/json" }, // 中身はJSON形式だと伝える
-      body: JSON.stringify({ title: title }), // データをJSON文字列にして送る
+      body: JSON.stringify({ title: title, genre: genre }), // データをJSON文字列にして送る
     });
 
     if (!response.ok) {
       const error = await response.json();
-      showError(error.detail || "TODOの追加に失敗しました");
+      showError(error.detail || "Gameの追加に失敗しました");
       return;
     }
 
     input.value = ""; // 入力欄を空に戻す
-    await loadTodos(); // 一覧を取り直して、追加結果を画面に反映する
+    genreInput.value = "";
+    await loadlibrary(); // 一覧を取り直して、追加結果を画面に反映する
   } catch (error) {
     showError("通信エラーが発生しました");
   }
 }
 
 /**
- * TODOの完了状態を切り替える
- * id: 対象のTODOの番号 / currentDone: いまの完了状態(true/false)
+ * Gamesの完了状態を切り替える
+ * id: 対象のGamesの番号 / currentplayed: いまの完了状態(true/false)
  */
-async function toggleTodo(id, currentDone) {
+async function toggleGames(id, currentplayed) {
   try {
-    // `${API_URL}/${id}` で /todos/5 のようなアドレスを作る（id=5のTODOが対象）
+    // `${API_URL}/${id}` で /library/5 のようなアドレスを作る（id=5のGamesが対象）
     const response = await fetch(`${API_URL}/${id}`, {
       method: "PUT", // PUT = 既存のデータを更新する
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ done: !currentDone }), // !で完了/未完了を反転させる
+      body: JSON.stringify({ played: !currentplayed }), // !で完了/未完了を反転させる
     });
 
     if (!response.ok) {
       const error = await response.json();
-      showError(error.detail || "TODOの更新に失敗しました");
+      showError(error.detail || "Gameの更新に失敗しました");
       return;
     }
 
-    await loadTodos(); // 一覧を取り直して、更新結果を画面に反映する
+    await loadlibrary(); // 一覧を取り直して、更新結果を画面に反映する
   } catch (error) {
     showError("通信エラーが発生しました");
   }
 }
 
 /**
- * TODOを削除する
- * id: 削除したいTODOの番号
+ * Gamesを削除する
+ * id: 削除したいGamesの番号
  */
-async function deleteTodo(id) {
+async function deleteGames(id) {
   try {
-    // /todos/5 のようなアドレスに対して削除を依頼する
+    // /library/5 のようなアドレスに対して削除を依頼する
     const response = await fetch(`${API_URL}/${id}`, {
       method: "DELETE", // DELETE = データを削除する
     });
 
     if (!response.ok) {
       const error = await response.json();
-      showError(error.detail || "TODOの削除に失敗しました");
+      showError(error.detail || "Gameの削除に失敗しました");
       return;
     }
 
-    await loadTodos(); // 一覧を取り直して、削除結果を画面に反映する
+    await loadlibrary(); // 一覧を取り直して、削除結果を画面に反映する
   } catch (error) {
     showError("通信エラーが発生しました");
   }
@@ -142,51 +149,56 @@ async function deleteTodo(id) {
 // ============================================================
 
 /**
- * TODOリストを描画する（XSS対策: createElement + textContent）
+ * Gamesリストを描画する（XSS対策: createElement + textContent）
  *
- * 受け取ったTODOの配列をもとに、画面に並べる<li>を1件ずつ組み立てる。
+ * 受け取ったGamesの配列をもとに、画面に並べる<li>を1件ずつ組み立てる。
  *
  * 【XSS対策のポイント】
  *  innerHTML に文字列を直接入れると、入力に紛れ込んだ<script>などが
  *  実行されてしまう危険がある（XSS）。そこで textContent を使い、
  *  入力を「ただの文字」として扱うことで、この攻撃を防いでいる。
  */
-function renderTodos(todos) {
-  const list = document.getElementById("todo-list");
+function renderlibrary(library) {
+  const list = document.getElementById("Games-list");
   list.innerHTML = ""; // 古い表示を一度すべて消してから描き直す
 
-  // todos配列の1件ずつ(todo)について、リストの行を作る
-  todos.forEach((todo) => {
-    // <li> 完了済みなら "done" クラスを足して見た目を変える
+  // library配列の1件ずつ(Games)について、リストの行を作る
+  library.forEach((Games) => {
+    // <li> 完了済みなら "played" クラスを足して見た目を変える
+    
     const li = document.createElement("li");
-    li.className = "todo-item" + (todo.done ? " done" : "");
+    li.className = "Games-item" + (Games.played ? " played" : "");
 
     // チェックボックスとタイトルをまとめる<label>
     const label = document.createElement("label");
-    label.className = "todo-label";
+    label.className = "Games-label";
 
     // 完了チェックボックス
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
-    checkbox.className = "todo-checkbox";
-    checkbox.checked = todo.done; // いまの完了状態をチェックに反映
-    // チェックが変わったら、完了状態を切り替える関数を呼ぶ
-    checkbox.addEventListener("change", () => toggleTodo(todo.id, todo.done));
+    checkbox.className = "Games-checkbox";
+    checkbox.checked = Games.played;
+    checkbox.addEventListener("change", () => toggleGames(Games.id, Games.played));
 
-    // TODOのタイトル文字。textContent で安全に入れる（XSS対策）
+    // Gamesのタイトル文字。textContent で安全に入れる（XSS対策）
     const titleSpan = document.createElement("span");
-    titleSpan.className = "todo-title";
-    titleSpan.textContent = todo.title;
+    titleSpan.className = "Games-title";
+    titleSpan.textContent = Games.title;
+
+    const genreSpan = document.createElement("span");
+    genreSpan.className = "Games-genre";
+    genreSpan.textContent = Games.genre ? `[${Games.genre}]` : "";
 
     // label の中に [チェックボックス][タイトル] を入れる
     label.appendChild(checkbox);
     label.appendChild(titleSpan);
+    label.appendChild(genreSpan);
 
     // 削除ボタン。押されたら削除する関数を呼ぶ
     const deleteBtn = document.createElement("button");
     deleteBtn.className = "delete-button";
     deleteBtn.textContent = "削除";
-    deleteBtn.addEventListener("click", () => deleteTodo(todo.id));
+    deleteBtn.addEventListener("click", () => deleteGames(Games.id));
 
     // <li> の中に [label][削除ボタン] を入れて、リストに追加する
     li.appendChild(label);
@@ -216,10 +228,10 @@ function showError(message) {
 // ============================================================
 
 // フォームが送信された（追加ボタン or Enter）ときの動き
-document.getElementById("todo-form").addEventListener("submit", function (e) {
+document.getElementById("Games-form").addEventListener("submit", function (e) {
   e.preventDefault(); // ページが再読み込みされる標準動作を止める
-  addTodo(); // 自分で用意した追加処理を呼ぶ
+  addGames(); // 自分で用意した追加処理を呼ぶ
 });
 
-// ページ読み込み時に、まずTODO一覧を取得して表示する（ここがスタート地点）
-loadTodos();
+// ページ読み込み時に、まずGames一覧を取得して表示する（ここがスタート地点）
+loadlibrary();
