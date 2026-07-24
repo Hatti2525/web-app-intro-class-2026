@@ -43,7 +43,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
             genre TEXT DEFAULT '',
-            played INTEGER DEFAULT 0
+            played INTEGER DEFAULT 0,
+            deleted INTEGER DEFAULT 0
         )
     """)
     conn.commit()  # 変更を確定して保存する
@@ -73,19 +74,19 @@ class GamesUpdate(BaseModel):
 # 「どのURLに、どの種類のリクエストが来たら、この関数を動かすか」を決める。
 
 
-@app.get("/library")  # GET /library にアクセスされたら実行
-def get_library():
+@app.get("/library")
+def get_library(deleted: bool = False):
     """game一覧を取得する"""
-    conn = sqlite3.connect(DATABASE)  # 接続する
+    conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    # library テーブルの全データを id 順に取り出す
-    cursor.execute("SELECT id, title, genre, played FROM library ORDER BY id")
-    library = cursor.fetchall()  # 取り出した全行をリストで受け取る
+    cursor.execute(
+        "SELECT id, title, genre, played FROM library WHERE deleted = ? ORDER BY id",
+        (int(deleted),),
+    )
+    library = cursor.fetchall()
 
-    conn.close()  # 接続を閉じる
-    # 1行は (id, title, played) の順のタプルなので、番号で取り出す。
-    # 取り出したデータを、ブラウザに返しやすい辞書のリストに作り変える。
+    conn.close()
     return [
         {"id": game[0], "title": game[1], "genre": game[2], "played": bool(game[3])}
         for game in library
@@ -138,25 +139,60 @@ def update_game(game_id: int, game: GamesUpdate):
     return {"id": game_id, "title": existing[0], "played": game.played}
 
 
-@app.delete("/library/{game_id}")  # DELETE /library/5 で id=5 のgameを削除
+@app.delete("/library/{game_id}")
 def delete_game(game_id: int):
-    """gameを削除する"""
+    """gameを削除済みにする（実際には消さない）"""
     conn = sqlite3.connect(DATABASE)
     cursor = conn.cursor()
 
-    # 削除する前に、その id のgameが存在するか確認する
     cursor.execute("SELECT id FROM library WHERE id = ?", (game_id,))
     existing = cursor.fetchone()
     if existing is None:
         conn.close()
         raise HTTPException(status_code=404, detail="game not found")
 
-    cursor.execute("DELETE FROM library WHERE id = ?", (game_id,))  # 削除する
-    conn.commit()  # 削除を確定する
+    cursor.execute("UPDATE library SET deleted = 1 WHERE id = ?", (game_id,))
+    conn.commit()
 
     conn.close()
     return {"message": "game deleted", "id": game_id}
 
+@app.put("/library/{game_id}/restore")
+def restore_game(game_id: int):
+    """削除済みのgameを元に戻す"""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM library WHERE id = ?", (game_id,))
+    existing = cursor.fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="game not found")
+
+    cursor.execute("UPDATE library SET deleted = 0 WHERE id = ?", (game_id,))
+    conn.commit()
+
+    conn.close()
+    return {"message": "game restored", "id": game_id}
+
+
+@app.delete("/library/{game_id}/permanent")
+def permanently_delete_game(game_id: int):
+    """gameを完全に削除する（元に戻せない）"""
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM library WHERE id = ?", (game_id,))
+    existing = cursor.fetchone()
+    if existing is None:
+        conn.close()
+        raise HTTPException(status_code=404, detail="game not found")
+
+    cursor.execute("DELETE FROM library WHERE id = ?", (game_id,))
+    conn.commit()
+
+    conn.close()
+    return {"message": "game permanently deleted", "id": game_id}
 
 # --- 静的ファイル配信 ---
 # static フォルダの中身（index.html など）をそのままブラウザに表示できるようにする

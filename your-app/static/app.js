@@ -19,6 +19,9 @@
 // サーバー側のAPIのアドレス（main.py の @app.get("/library") などに対応）
 const API_URL = "/library";
 
+
+
+let showingDeleted = false; // 今どちらのリストを見ているか
 // ============================================================
 // Games操作（CRUD）
 // ============================================================
@@ -29,8 +32,9 @@ const API_URL = "/library";
 async function loadlibrary() {
   // try ... catch: 通信中にエラーが起きても、アプリが止まらないようにする
   try {
+    const url = showingDeleted ? `${API_URL}?deleted=true` : API_URL;
     // サーバーに「一覧をください」とお願いし、返事(response)を待つ
-    const response = await fetch(API_URL);
+    const response = await fetch(url);
 
     // response.ok が false = サーバーがエラーを返したとき
     if (!response.ok) {
@@ -144,6 +148,44 @@ async function deleteGames(id) {
   }
 }
 
+async function restoreGame(id) {
+  try {
+    const response = await fetch(`${API_URL}/${id}/restore`, {
+      method: "PUT",
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      showError(error.detail || "復元に失敗しました");
+      return;
+    }
+
+    await loadlibrary();
+  } catch (error) {
+    showError("通信エラーが発生しました");
+  }
+}
+
+async function permanentlyDeleteGame(id) {
+  const confirmed = confirm("本当に完全に削除しますか？この操作は元に戻せません。");
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(`${API_URL}/${id}/permanent`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      showError(error.detail || "完全削除に失敗しました");
+      return;
+    }
+
+    await loadlibrary();
+  } catch (error) {
+    showError("通信エラーが発生しました");
+  }
+}
 // ============================================================
 // 描画
 // ============================================================
@@ -178,6 +220,7 @@ function renderlibrary(library) {
     checkbox.type = "checkbox";
     checkbox.className = "Games-checkbox";
     checkbox.checked = Games.played;
+    checkbox.disabled = showingDeleted;
     checkbox.addEventListener("change", () => toggleGames(Games.id, Games.played));
 
     // Gamesのタイトル文字。textContent で安全に入れる（XSS対策）
@@ -190,23 +233,42 @@ function renderlibrary(library) {
     genreSpan.textContent = Games.genre ? `[${Games.genre}]` : "";
 
     // label の中に [チェックボックス][タイトル] を入れる
+   // label の中に [チェックボックス][タイトル][ジャンル] を入れる
     label.appendChild(checkbox);
     label.appendChild(titleSpan);
     label.appendChild(genreSpan);
 
-    // 削除ボタン。押されたら削除する関数を呼ぶ
-    const deleteBtn = document.createElement("button");
-    deleteBtn.className = "delete-button";
-    deleteBtn.textContent = "削除";
-    deleteBtn.addEventListener("click", () => deleteGames(Games.id));
-
-    // <li> の中に [label][削除ボタン] を入れて、リストに追加する
+    // <li> の中にまず label を入れる
     li.appendChild(label);
-    li.appendChild(deleteBtn);
+
+    if (showingDeleted) {
+      // 削除済みモード: 「復元」と「完全削除」ボタンを出す
+      const restoreBtn = document.createElement("button");
+      restoreBtn.className = "restore-button";
+      restoreBtn.textContent = "復元";
+      restoreBtn.addEventListener("click", () => restoreGame(Games.id));
+
+      const permanentDeleteBtn = document.createElement("button");
+      permanentDeleteBtn.className = "delete-button";
+      permanentDeleteBtn.textContent = "完全削除";
+      permanentDeleteBtn.addEventListener("click", () => permanentlyDeleteGame(Games.id));
+
+      li.appendChild(restoreBtn);
+      li.appendChild(permanentDeleteBtn);
+    } else {
+      // 通常モード: 今まで通り「削除」ボタン
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-button";
+      deleteBtn.textContent = "削除";
+      deleteBtn.addEventListener("click", () => deleteGames(Games.id));
+
+      li.appendChild(deleteBtn);
+    }
 
     list.appendChild(li);
   });
 }
+ 
 
 // ============================================================
 // メッセージ表示
@@ -232,6 +294,21 @@ document.getElementById("Games-form").addEventListener("submit", function (e) {
   e.preventDefault(); // ページが再読み込みされる標準動作を止める
   addGames(); // 自分で用意した追加処理を呼ぶ
 });
+
+document.getElementById("show-active-btn").addEventListener("click", () => {
+  showingDeleted = false;
+  document.getElementById("show-active-btn").classList.add("active");
+  document.getElementById("show-deleted-btn").classList.remove("active");
+  loadlibrary();
+});
+
+document.getElementById("show-deleted-btn").addEventListener("click", () => {
+  showingDeleted = true;
+  document.getElementById("show-deleted-btn").classList.add("active");
+  document.getElementById("show-active-btn").classList.remove("active");
+  loadlibrary();
+});
+
 
 // ページ読み込み時に、まずGames一覧を取得して表示する（ここがスタート地点）
 loadlibrary();

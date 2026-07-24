@@ -169,6 +169,54 @@ body {
   background-color: rgba(164, 208, 7, 0.1);
 }
 
+/* --- 表示切り替えボタン --- */
+.view-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #2a475e;
+  padding-bottom: 8px;
+}
+
+.toggle-button {
+  padding: 8px 16px;
+  background-color: transparent;
+  color: #6b8299;
+  border: none;
+  border-bottom: 2px solid transparent;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.toggle-button:hover {
+  color: #c7d5e0;
+}
+
+.toggle-button.active {
+  color: #66c0f4;
+  border-bottom-color: #66c0f4;
+}
+
+/* --- 復元ボタン --- */
+.restore-button {
+  padding: 6px 12px;
+  background-color: transparent;
+  color: #66c0f4;
+  border: 1px solid #4c6b8a;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  margin-right: 8px;
+  transition: all 0.3s;
+}
+
+.restore-button:hover {
+  background-color: rgba(102, 192, 244, 0.15);
+  border-color: #66c0f4;
+}
+
 /* --- 削除ボタン --- */
 .delete-button {
   padding: 6px 12px;
