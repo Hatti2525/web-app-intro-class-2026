@@ -56,6 +56,37 @@ body {
   border: 1px solid #a34141;
 }
 
+/* --- 統計表示 --- */
+.stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background-color: #16202d;
+  border: 1px solid #2a475e;
+  border-radius: 4px;
+}
+
+.stat-item {
+  flex: 1;
+  text-align: center;
+}
+
+.stat-number {
+  display: block;
+  font-size: 28px;
+  font-weight: bold;
+  color: #66c0f4;
+}
+
+.stat-label {
+  display: block;
+  font-size: 12px;
+  color: #6b8299;
+  margin-top: 4px;
+}
+
+
 /* --- 入力エリア --- */
 .input-area {
   display: flex;

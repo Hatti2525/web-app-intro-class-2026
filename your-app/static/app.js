@@ -48,6 +48,12 @@ async function loadlibrary() {
 
     library.sort((a, b) => a.played - b.played);
     
+
+    if (!showingDeleted) {
+      renderStats(library); // 通常モードのときだけ統計を更新
+    }
+
+
     renderlibrary(library); // 画面に描画する
   } catch (error) {
     // そもそもサーバーにつながらなかったときなど
@@ -200,6 +206,17 @@ async function permanentlyDeleteGame(id) {
  *  実行されてしまう危険がある（XSS）。そこで textContent を使い、
  *  入力を「ただの文字」として扱うことで、この攻撃を防いでいる。
  */
+
+function renderStats(library) {
+  const total = library.length;
+  const played = library.filter((Games) => Games.played).length;
+  const unplayed = total - played;
+
+  document.getElementById("stat-total").textContent = total;
+  document.getElementById("stat-played").textContent = played;
+  document.getElementById("stat-unplayed").textContent = unplayed;
+}
+
 function renderlibrary(library) {
   const list = document.getElementById("Games-list");
   list.innerHTML = ""; // 古い表示を一度すべて消してから描き直す
